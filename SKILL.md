@@ -42,20 +42,37 @@ julia --project= path/to/skill/scripts/julia_server.jl
 
 The server will output:
 ```
-🤖 Julia 服务器已启动
+🤖 Julia 服务器已启动 (ID: julia_repl_12345_6789)
 📦 所有包已加载
 🔄 Revise 热重载已激活
+📡 通信目录: C:/Users/YourUser/AppData/Local/Temp/julia_repl_XYZ
+🔑 服务器ID: julia_repl_12345_6789
+💾 配置文件已保存: C:/Users/YourUser/.julia_repl_server_config.jl
+==================================================
 🎯 服务器准备就绪，等待命令...
 ```
 
-### Execute Julia Code
+**Key Features:**
+- **✅ Cross-Directory Support**: Call from any directory on your system
+- **✅ Unique Server ID**: Each server instance gets a unique identifier
+- **✅ Automatic Configuration**: Server settings saved to user home directory
+- **✅ Temporary Files**: Communication files use system temp directories
 
-Use the JuliaREPLHelper to send commands:
+### Execute Julia Code (Cross-Directory)
+
+Use the JuliaREPLHelper to send commands from **any directory**:
 
 ```julia
-# Load the helper module
+# Load the helper module (can be done from any directory)
 include("path/to/skill/scripts/JuliaREPLHelper.jl")
 using .JuliaREPLHelper
+
+# Check server connection and info
+get_server_info()
+# Output:
+# 🔗 服务器ID: julia_repl_12345_6789
+# 📡 通信目录: C:/Users/YourUser/AppData/Local/Temp/julia_repl_XYZ
+# ⏰ 启动时间: 2025-11-28T17:20:23.629
 
 # Execute basic commands
 response = send_command("2 + 2")
@@ -70,6 +87,11 @@ response = send_command("df = DataFrame(A=1:5, B=rand(5))")
 response = send_command("plot(1:10, rand(10))")
 ```
 
+**New Cross-Directory Features:**
+- **`get_server_info()`**: Display server connection details and status
+- **Automatic Discovery**: Helper automatically finds running servers via configuration files
+- **Project-Agnostic**: Works regardless of your current working directory
+
 ### Available Preloaded Packages
 
 The server comes with these packages pre-loaded:
@@ -83,10 +105,22 @@ The server comes with these packages pre-loaded:
 
 ### Communication Method
 
-The skill uses file-based communication:
-- Commands written to `julia_command.txt`
-- Responses read from `julia_response.txt`
+The skill uses configuration-file-based communication for true cross-directory support:
+
+**Server Side:**
+- Creates unique temporary directories for communication files
+- Saves configuration to `~/.julia_repl_server_config.jl`
+- Uses system temporary directories with unique IDs
+
+**Client Side:**
+- Automatically discovers running servers via configuration files
+- Reads server connection details from user home directory
+- Works regardless of current working directory
+
+**Performance Improvements:**
+- Fast polling intervals (0.1s server, 0.05s client)
 - Automatic file cleanup after each operation
+- Optimized path handling for all operating systems
 
 ### Error Handling
 
@@ -156,10 +190,38 @@ This module provides the client-side interface for communicating with the runnin
 - Clean file management prevents resource leaks
 - All responses include success/error status indicators
 
+## Complete Usage Example
+
+```bash
+# Step 1: Start the server (do this once)
+cd /path/to/julia-repl-server-skill
+julia --project=. scripts/julia_server.jl &
+# Server outputs connection info and creates config file
+
+# Step 2: Use from ANY directory
+cd /my/project/directory
+julia
+
+# Inside Julia (from any directory)
+include("path/to/skill/scripts/JuliaREPLHelper.jl")
+using .JuliaREPLHelper
+
+# Check connection
+get_server_info()
+# Shows server ID, communication directory, and startup time
+
+# Execute code immediately
+send_command("using DataFrames, Plots")
+send_command("df = DataFrame(x=1:10, y=rand(10))")
+send_command("plot(df.x, df.y)")
+```
+
 ## Best Practices
 
-1. Keep the server running for the entire development session
-2. Use `send_command()` for all Julia code execution
-3. Check response format to detect success vs errors - success starts with "✅", errors with "❌"
-4. Load required packages first: `send_command("using DataFrames, Plots")`
-5. Leverage hot reload for iterative development - modify code and re-include immediately
+1. **Single Server Session**: Start one server and keep it running for your entire development session
+2. **Cross-Directory Workflow**: Work in any project directory - the server remains accessible
+3. **Use `get_server_info()`**: Check connection status before sending critical commands
+4. **Error Detection**: Success responses start with "✅", errors with "❌"
+5. **Package Management**: Load required packages first: `send_command("using DataFrames, Plots")`
+6. **Hot Reload**: Modify code files and re-include immediately for instant updates
+7. **Multiple Instances**: Can run multiple servers simultaneously (each gets unique ID)
